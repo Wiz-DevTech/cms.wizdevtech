@@ -23,21 +23,17 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid credentials")
         }
 
-        const user = await prisma.user.findUnique({
+const user = await prisma.user.findUnique({
           where: {
             email: credentials.email
           },
           include: {
-            role: {
-              include: {
-                permissions: true
-              }
-            }
+            role: true  // ✅ Just include the role, no nested permissions
           }
         })
 
         if (!user || !user.password) {
-          throw new Error("Invalid credentials")
+          return null  // Return null instead of throwing
         }
 
         const isCorrectPassword = await bcrypt.compare(
@@ -46,7 +42,11 @@ export const authOptions: NextAuthOptions = {
         )
 
         if (!isCorrectPassword) {
-          throw new Error("Invalid credentials")
+          return null  // Return null instead of throwing
+        }
+
+        if (!user.isActive) {
+          return null  // Check if user is active
         }
 
         return {
@@ -54,7 +54,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           role: user.role.name,
-          permissions: user.role.permissions.map(p => p.name)
+          permissions: user.role.permissions.split(',').filter(p => p.trim())  // ✅ Parse the string
         }
       }
     })
