@@ -47,3 +47,19 @@ test
 prompt
 
 server.log
+
+# Word files
+*.docx
+*.docm      
+*.dotx
+*.dotm
+*.doc
+
+# Shell scripts
+*.sh
+*.bash
+*.zsh
+*.ksh
+*.csh
+*.fish
+*.tcsh
