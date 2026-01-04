@@ -1,4 +1,3 @@
-
 // src/app/api/auth/[...nextauth]/route.ts
 import NextAuth from "next-auth"
 import type { NextAuthOptions } from "next-auth"
@@ -19,42 +18,55 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
+        console.log('🔐 Login attempt:', credentials?.email)
+        
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Invalid credentials")
+          console.log('❌ Missing credentials')
+          return null
         }
 
-const user = await prisma.user.findUnique({
+        const user = await prisma.user.findUnique({
           where: {
             email: credentials.email
           },
           include: {
-            role: true  // ✅ Just include the role, no nested permissions
+            role: true
           }
         })
 
+        console.log('👤 User found:', user ? 'YES' : 'NO')
+        
         if (!user || !user.password) {
-          return null  // Return null instead of throwing
+          console.log('❌ User not found or no password')
+          return null
         }
 
+        console.log('🔑 Comparing passwords...')
         const isCorrectPassword = await bcrypt.compare(
           credentials.password,
           user.password
         )
+        
+        console.log('🔑 Password match:', isCorrectPassword ? 'YES' : 'NO')
 
         if (!isCorrectPassword) {
-          return null  // Return null instead of throwing
+          console.log('❌ Password incorrect')
+          return null
         }
 
         if (!user.isActive) {
-          return null  // Check if user is active
+          console.log('❌ User inactive')
+          return null
         }
 
+        console.log('✅ Login successful for:', user.email)
+        
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           role: user.role.name,
-          permissions: user.role.permissions.split(',').filter(p => p.trim())  // ✅ Parse the string
+          permissions: user.role.permissions.split(',').filter(p => p.trim())
         }
       }
     })
@@ -77,7 +89,7 @@ const user = await prisma.user.findUnique({
   },
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 30 * 24 * 60 * 60,
   },
   pages: {
     signIn: '/auth/signin',
