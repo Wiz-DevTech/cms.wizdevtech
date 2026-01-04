@@ -1,15 +1,11 @@
-// src/app/api/auth/[...nextauth]/route.ts
 import NextAuth from "next-auth"
-import type { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { PrismaAdapter } from "@auth/prisma-adapter"
 import { PrismaClient } from "@prisma/client"
 import bcrypt from "bcryptjs"
 
 const prisma = new PrismaClient()
 
-export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+const handler = NextAuth({
   providers: [
     CredentialsProvider({
       name: "credentials",
@@ -26,12 +22,8 @@ export const authOptions: NextAuthOptions = {
         }
 
         const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email
-          },
-          include: {
-            role: true
-          }
+          where: { email: credentials.email },
+          include: { role: true }
         })
 
         console.log('👤 User found:', user ? 'YES' : 'NO')
@@ -64,7 +56,7 @@ export const authOptions: NextAuthOptions = {
         return {
           id: user.id,
           email: user.email,
-          name: user.name,
+          name: user.name || null,
           role: user.role.name,
           permissions: user.role.permissions.split(',').filter(p => p.trim())
         }
@@ -74,6 +66,7 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        token.id = user.id
         token.role = user.role
         token.permissions = user.permissions
       }
@@ -81,6 +74,7 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session?.user) {
+        session.user.id = token.id as string
         session.user.role = token.role as string
         session.user.permissions = token.permissions as string[]
       }
@@ -89,16 +83,13 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60,
+    maxAge: 30 * 24 * 60 * 60
   },
   pages: {
     signIn: '/auth/signin',
-    signOut: '/auth/signout',
-    error: '/auth/error',
+    error: '/auth/error'
   },
-  secret: process.env.NEXTAUTH_SECRET,
-}
-
-const handler = NextAuth(authOptions)
+  secret: process.env.NEXTAUTH_SECRET
+})
 
 export { handler as GET, handler as POST }
