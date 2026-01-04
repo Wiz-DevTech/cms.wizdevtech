@@ -1,9 +1,21 @@
 import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-// We no longer import PrismaClient directly
-// We import our new singleton instance instead
-import prisma from "@/lib/prisma"
+import { PrismaClient } from "@prisma/client"
 import bcrypt from "bcryptjs"
+
+// Create a singleton to avoid multiple instances
+const globalForPrisma = global as unknown as { prisma: PrismaClient }
+
+const prisma = globalForPrisma.prisma || new PrismaClient({
+  log: ['query', 'error', 'warn'],
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL
+    }
+  }
+})
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 const handler = NextAuth({
   providers: [
@@ -21,7 +33,6 @@ const handler = NextAuth({
           return null
         }
 
-        // We wrap our logic in a try...catch to find any hidden errors
         try {
           console.log('🔍 Attempting to find user in database...')
           const user = await prisma.user.findUnique({
@@ -64,7 +75,6 @@ const handler = NextAuth({
             permissions: user.role.permissions.split(',').filter(p => p.trim())
           }
         } catch (error) {
-          // If any error happens, we log it to the console
           console.error('🚨 An error occurred during authorization:', error)
           return null
         }
